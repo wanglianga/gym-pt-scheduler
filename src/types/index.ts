@@ -68,8 +68,27 @@ export interface Booking {
   specialty: CoachSpecialty;
   notes?: string;
   cancelReason?: string;
+  adjustmentNote?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type InjuryType = 'knee' | 'back' | 'heart' | 'shoulder' | 'ankle' | 'neck' | 'other';
+
+export interface InjuryAlert {
+  type: InjuryType;
+  label: string;
+  source: 'injuries' | 'notes' | 'metrics';
+  detail: string;
+}
+
+export interface InjuryRiskAssessment {
+  hasInjury: boolean;
+  alerts: InjuryAlert[];
+  unsuitableSpecialties: CoachSpecialty[];
+  highIntensitySpecialties: CoachSpecialty[];
+  isHighIntensitySelected: boolean;
+  requiresAdjustmentNote: boolean;
 }
 
 export interface CoursePackage {

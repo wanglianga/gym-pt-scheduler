@@ -1,4 +1,4 @@
-import { Clock, CheckCircle, AlertCircle, XCircle, CalendarX } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, XCircle, CalendarX, FileWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Booking, BookingStatus } from '@/types';
 import { BOOKING_STATUS_LABEL, SPECIALTY_LABEL } from '@/types';
@@ -117,6 +117,15 @@ export default function CalendarSlot({
               <span className={cn('text-[10px] font-semibold uppercase tracking-wide', style.text)}>
                 {BOOKING_STATUS_LABEL[booking.status]}
               </span>
+              {booking.adjustmentNote && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[9px] px-1 rounded bg-yellow-500/20 text-yellow-500"
+                  title="有训练调整说明"
+                >
+                  <FileWarning size={9} />
+                  调整
+                </span>
+              )}
             </div>
             <span className={cn('mt-0.5 truncate text-xs font-medium', 'text-ink-100')}>
               {SPECIALTY_LABEL[booking.specialty]}
@@ -127,8 +136,13 @@ export default function CalendarSlot({
           </div>
         </div>
 
+        {booking.adjustmentNote && rowSpan >= 2 && (
+          <p className="mt-1 line-clamp-1 pl-2 text-[10px] text-yellow-500/80">
+            ⚠ {booking.adjustmentNote}
+          </p>
+        )}
         {booking.notes && rowSpan >= 2 && (
-          <p className="mt-1 line-clamp-2 pl-2 text-[10px] text-ink-400">
+          <p className="mt-0.5 line-clamp-2 pl-2 text-[10px] text-ink-400">
             {booking.notes}
           </p>
         )}

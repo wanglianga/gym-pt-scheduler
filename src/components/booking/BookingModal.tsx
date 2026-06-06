@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, CalendarPlus, User, Dumbbell, Clock, StickyNote, AlertTriangle, CheckCircle, Search } from 'lucide-react';
+import { X, CalendarPlus, User, Dumbbell, Clock, StickyNote, AlertTriangle, CheckCircle, Search, ShieldAlert, HeartPulse, Activity, FileWarning } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useCoachStore } from '@/store/useCoachStore';
 import { usePackageStore } from '@/store/usePackageStore';
 import { useBookingStore } from '@/store/useBookingStore';
-import type { CoachSpecialty } from '@/types';
+import { useMetricStore } from '@/store/useMetricStore';
+import type { CoachSpecialty, InjuryAlert } from '@/types';
 import { SPECIALTY_LABEL } from '@/types';
 import { formatDate, getTimeSlots } from '@/utils/date';
+import { assessInjuryRisk, getRecommendedSpecialties, HIGH_INTENSITY_SPECIALTIES } from '@/utils/injury';
 
 interface BookingModalProps {
   open: boolean;
@@ -17,6 +19,28 @@ interface BookingModalProps {
   initialCoachId?: string;
   initialDate?: string;
   initialStartTime?: string;
+}
+
+function InjuryAlertBadge({ alert }: { alert: InjuryAlert }) {
+  const iconMap: Record<string, typeof HeartPulse> = {
+    knee: Activity,
+    back: Activity,
+    heart: HeartPulse,
+    shoulder: Activity,
+    ankle: Activity,
+    neck: Activity,
+    other: ShieldAlert,
+  };
+  const Icon = iconMap[alert.type] || ShieldAlert;
+  return (
+    <div className="flex items-start gap-2 p-2 rounded-lg bg-danger/10 border border-danger/30">
+      <Icon size={14} className="text-danger mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-medium text-danger">{alert.label}</div>
+        <div className="text-[11px] text-ink-400 mt-0.5 truncate">{alert.detail}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function BookingModal({
@@ -32,6 +56,7 @@ export default function BookingModal({
   const { coaches, loadCoaches } = useCoachStore();
   const { getValidPackageByMember, loadPackages } = usePackageStore();
   const { addBooking, getBookingsByCoachAndDate } = useBookingStore();
+  const { loadMetrics, getLatestMetric } = useMetricStore();
 
   const [memberKeyword, setMemberKeyword] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState('');
@@ -41,6 +66,7 @@ export default function BookingModal({
   const [selectedEndTime, setSelectedEndTime] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<CoachSpecialty | ''>('');
   const [notes, setNotes] = useState('');
+  const [adjustmentNote, setAdjustmentNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -55,6 +81,7 @@ export default function BookingModal({
       loadMembers();
       loadCoaches();
       loadPackages();
+      loadMetrics();
       setSelectedMemberId(initialMemberId || '');
       setSelectedCoachId(initialCoachId || '');
       setSelectedDate(initialDate || formatDate(new Date()));
@@ -68,12 +95,27 @@ export default function BookingModal({
       }
       setSelectedSpecialty('');
       setNotes('');
+      setAdjustmentNote('');
     }
-  }, [open, initialMemberId, initialCoachId, initialDate, initialStartTime, submitted, loadMembers, loadCoaches, loadPackages]);
+  }, [open, initialMemberId, initialCoachId, initialDate, initialStartTime, submitted, loadMembers, loadCoaches, loadPackages, loadMetrics]);
 
   const filteredMembers = useMemo(() => {
     return searchMembers(memberKeyword);
   }, [memberKeyword, searchMembers]);
+
+  const selectedMember = members.find((m) => m.id === selectedMemberId);
+  const selectedCoach = coaches.find((c) => c.id === selectedCoachId);
+  const latestMetric = selectedMemberId ? getLatestMetric(selectedMemberId) : null;
+
+  const riskAssessment = useMemo(() => {
+    if (!selectedMember) return null;
+    return assessInjuryRisk(selectedMember, latestMetric, selectedSpecialty);
+  }, [selectedMember, latestMetric, selectedSpecialty]);
+
+  const recommendedSpecialties = useMemo(() => {
+    if (!riskAssessment) return [];
+    return getRecommendedSpecialties(riskAssessment.alerts);
+  }, [riskAssessment]);
 
   const validPackage = useMemo(() => {
     if (!selectedMemberId || !selectedSpecialty) return undefined;
@@ -105,7 +147,8 @@ export default function BookingModal({
     selectedStartTime &&
     selectedEndTime &&
     selectedSpecialty &&
-    packageBalance > 0;
+    packageBalance > 0 &&
+    (!riskAssessment?.requiresAdjustmentNote || adjustmentNote.trim().length > 0);
 
   const handleStartTimeChange = (time: string) => {
     setSelectedStartTime(time);
@@ -127,6 +170,7 @@ export default function BookingModal({
         status: 'scheduled',
         specialty: selectedSpecialty,
         notes: notes || undefined,
+        adjustmentNote: adjustmentNote.trim() || undefined,
       });
       setSubmitted(true);
       onSuccess?.();
@@ -144,6 +188,7 @@ export default function BookingModal({
     setSelectedEndTime('');
     setSelectedSpecialty('');
     setNotes('');
+    setAdjustmentNote('');
   };
 
   const handleCloseAndReset = () => {
@@ -153,9 +198,6 @@ export default function BookingModal({
   };
 
   if (!open) return null;
-
-  const selectedMember = members.find((m) => m.id === selectedMemberId);
-  const selectedCoach = coaches.find((c) => c.id === selectedCoachId);
 
   if (submitted) {
     return (
@@ -213,6 +255,17 @@ export default function BookingModal({
                 <div>
                   <div className="text-xs text-ink-400">课程类型</div>
                   <div className="font-medium">{SPECIALTY_LABEL[selectedSpecialty]}</div>
+                </div>
+              </div>
+            )}
+            {adjustmentNote && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center shrink-0">
+                  <FileWarning size={14} className="text-yellow-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-ink-400">训练调整说明</div>
+                  <div className="font-medium text-sm">{adjustmentNote}</div>
                 </div>
               </div>
             )}
@@ -311,22 +364,53 @@ export default function BookingModal({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between p-4 rounded-xl bg-ink-900 border border-ink-700">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-ink-700 flex items-center justify-center font-medium">
-                    {members.find((m) => m.id === selectedMemberId)?.name[0]}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-ink-900 border border-ink-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-ink-700 flex items-center justify-center font-medium">
+                      {members.find((m) => m.id === selectedMemberId)?.name[0]}
+                    </div>
+                    <div>
+                      <div className="font-medium">{members.find((m) => m.id === selectedMemberId)?.name}</div>
+                      <div className="text-xs text-ink-400">{members.find((m) => m.id === selectedMemberId)?.phone}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium">{members.find((m) => m.id === selectedMemberId)?.name}</div>
-                    <div className="text-xs text-ink-400">{members.find((m) => m.id === selectedMemberId)?.phone}</div>
-                  </div>
+                  <button
+                    onClick={() => setSelectedMemberId('')}
+                    className="text-xs text-ink-400 hover:text-orange transition-colors"
+                  >
+                    更换
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSelectedMemberId('')}
-                  className="text-xs text-ink-400 hover:text-orange transition-colors"
-                >
-                  更换
-                </button>
+
+                {riskAssessment && riskAssessment.hasInjury && (
+                  <div className="p-4 rounded-xl border border-danger/40 bg-danger/5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert size={16} className="text-danger" />
+                      <span className="text-sm font-medium text-danger">会员存在伤病风险，请注意训练安排</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {riskAssessment.alerts.map((alert, idx) => (
+                        <InjuryAlertBadge key={idx} alert={alert} />
+                      ))}
+                    </div>
+                    {recommendedSpecialties.length > 0 && (
+                      <div className="pt-2 border-t border-danger/20">
+                        <div className="text-xs text-ink-400 mb-2">推荐课程类型：</div>
+                        <div className="flex flex-wrap gap-2">
+                          {recommendedSpecialties.map((s) => (
+                            <span
+                              key={s}
+                              className="text-xs px-2.5 py-1 rounded-full bg-lime/15 text-lime border border-lime/30"
+                            >
+                              {SPECIALTY_LABEL[s]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -337,22 +421,71 @@ export default function BookingModal({
               课程类型 <span className="text-danger">*</span>
             </label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.entries(SPECIALTY_LABEL) as [CoachSpecialty, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedSpecialty(key)}
-                  className={cn(
-                    'px-3 py-2.5 rounded-lg text-sm font-medium transition-all border',
-                    selectedSpecialty === key
-                      ? 'bg-orange/20 text-orange border-orange/50 shadow-glow-orange'
-                      : 'bg-ink-900 text-ink-300 border-ink-700 hover:border-ink-600'
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+              {(Object.entries(SPECIALTY_LABEL) as [CoachSpecialty, string][]).map(([key, label]) => {
+                const isUnsuitable = riskAssessment?.unsuitableSpecialties.includes(key);
+                const isHighIntensity = HIGH_INTENSITY_SPECIALTIES.includes(key);
+                const isSelected = selectedSpecialty === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedSpecialty(key)}
+                    className={cn(
+                      'px-3 py-2.5 rounded-lg text-sm font-medium transition-all border relative',
+                      isSelected
+                        ? isUnsuitable
+                          ? 'bg-danger/20 text-danger border-danger/60 shadow-[0_0_0_1px_rgba(239,68,68,0.3)]'
+                          : 'bg-orange/20 text-orange border-orange/50 shadow-glow-orange'
+                        : isUnsuitable
+                          ? 'bg-ink-900 text-danger/80 border-danger/30 hover:border-danger/50'
+                          : 'bg-ink-900 text-ink-300 border-ink-700 hover:border-ink-600'
+                    )}
+                  >
+                    <span>{label}</span>
+                    {isHighIntensity && (
+                      <span className="absolute -top-1 -right-1 text-[9px] px-1 py-0.5 rounded bg-yellow-500/80 text-ink-900 font-bold">
+                        高强度
+                      </span>
+                    )}
+                    {isUnsuitable && (
+                      <span className="absolute -bottom-1 -right-1">
+                        <AlertTriangle size={12} className="text-danger" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+            {riskAssessment && selectedSpecialty && riskAssessment.unsuitableSpecialties.includes(selectedSpecialty) && (
+              <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-danger/10 border border-danger/30">
+                <AlertTriangle size={16} className="text-danger mt-0.5 shrink-0" />
+                <div className="text-xs text-danger">
+                  该课程类型可能不适合此会员的伤病情况，请谨慎安排。如确认安排，请在下方填写训练调整说明。
+                </div>
+              </div>
+            )}
           </div>
+
+          {riskAssessment?.requiresAdjustmentNote && (
+            <div className="p-4 rounded-xl border border-yellow-500/40 bg-yellow-500/5 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileWarning size={16} className="text-yellow-500" />
+                <span className="text-sm font-medium text-yellow-500">需要填写训练调整说明</span>
+              </div>
+              <div className="text-xs text-ink-300">
+                该会员存在伤病风险，且您选择了高强度课程 {SPECIALTY_LABEL[selectedSpecialty]}。请详细说明如何调整训练计划以确保会员安全。
+              </div>
+              <textarea
+                value={adjustmentNote}
+                onChange={(e) => setAdjustmentNote(e.target.value)}
+                placeholder="例如：降低训练强度、替换负重深蹲为坐姿腿举、缩短组间休息时间、增加热身时长..."
+                rows={3}
+                className="input resize-none border-yellow-500/30 focus:border-yellow-500 bg-ink-900"
+              />
+              {adjustmentNote.trim().length === 0 && (
+                <div className="text-[11px] text-danger">请填写训练调整说明后才能提交预约</div>
+              )}
+            </div>
+          )}
 
           {selectedMemberId && (
             <div className={cn(
