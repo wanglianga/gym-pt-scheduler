@@ -13,9 +13,21 @@ interface BookingModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialMemberId?: string;
+  initialCoachId?: string;
+  initialDate?: string;
+  initialStartTime?: string;
 }
 
-export default function BookingModal({ open, onClose, onSuccess }: BookingModalProps) {
+export default function BookingModal({
+  open,
+  onClose,
+  onSuccess,
+  initialMemberId = '',
+  initialCoachId = '',
+  initialDate,
+  initialStartTime = '',
+}: BookingModalProps) {
   const { members, loadMembers, searchMembers } = useMemberStore();
   const { coaches, loadCoaches } = useCoachStore();
   const { getValidPackageByMember, loadPackages } = usePackageStore();
@@ -30,14 +42,34 @@ export default function BookingModal({ open, onClose, onSuccess }: BookingModalP
   const [selectedSpecialty, setSelectedSpecialty] = useState<CoachSpecialty | ''>('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (open) {
+      setSubmitted(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && !submitted) {
       loadMembers();
       loadCoaches();
       loadPackages();
+      setSelectedMemberId(initialMemberId || '');
+      setSelectedCoachId(initialCoachId || '');
+      setSelectedDate(initialDate || formatDate(new Date()));
+      setSelectedStartTime(initialStartTime || '');
+      if (initialStartTime) {
+        const startHour = parseInt(initialStartTime.split(':')[0]);
+        const endHour = startHour + 1;
+        setSelectedEndTime(`${String(endHour).padStart(2, '0')}:00`);
+      } else {
+        setSelectedEndTime('');
+      }
+      setSelectedSpecialty('');
+      setNotes('');
     }
-  }, [open, loadMembers, loadCoaches, loadPackages]);
+  }, [open, initialMemberId, initialCoachId, initialDate, initialStartTime, submitted, loadMembers, loadCoaches, loadPackages]);
 
   const filteredMembers = useMemo(() => {
     return searchMembers(memberKeyword);
@@ -96,9 +128,8 @@ export default function BookingModal({ open, onClose, onSuccess }: BookingModalP
         specialty: selectedSpecialty,
         notes: notes || undefined,
       });
+      setSubmitted(true);
       onSuccess?.();
-      handleReset();
-      onClose();
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +146,92 @@ export default function BookingModal({ open, onClose, onSuccess }: BookingModalP
     setNotes('');
   };
 
+  const handleCloseAndReset = () => {
+    handleReset();
+    setSubmitted(false);
+    onClose();
+  };
+
   if (!open) return null;
+
+  const selectedMember = members.find((m) => m.id === selectedMemberId);
+  const selectedCoach = coaches.find((c) => c.id === selectedCoachId);
+
+  if (submitted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+        <div className="relative w-full max-w-md bg-ink-800 border border-ink-700 rounded-2xl shadow-industrial animate-scale-in overflow-hidden">
+          <div className="px-6 pt-8 pb-6 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-lime/20 flex items-center justify-center mb-4 animate-scale-in">
+              <CheckCircle size={36} className="text-lime" />
+            </div>
+            <h2 className="text-2xl font-heading font-bold tracking-wide text-ink-50 mb-2">
+              预约成功
+            </h2>
+            <p className="text-ink-300 text-sm">以下课程已成功创建</p>
+          </div>
+          <div className="px-6 py-5 border-y border-ink-700 bg-ink-900/50 space-y-3">
+            {selectedMember && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-ink-700 flex items-center justify-center text-xs font-medium">
+                  {selectedMember.name[0]}
+                </div>
+                <div>
+                  <div className="text-xs text-ink-400">会员</div>
+                  <div className="font-medium">{selectedMember.name}</div>
+                </div>
+              </div>
+            )}
+            {selectedCoach && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-orange/20 flex items-center justify-center text-xs font-medium text-orange">
+                  {selectedCoach.name[0]}
+                </div>
+                <div>
+                  <div className="text-xs text-ink-400">教练</div>
+                  <div className="font-medium">{selectedCoach.name}</div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-info/20 flex items-center justify-center">
+                <CalendarPlus size={14} className="text-info" />
+              </div>
+              <div>
+                <div className="text-xs text-ink-400">课程时间</div>
+                <div className="font-medium">
+                  {selectedDate} · {selectedStartTime} - {selectedEndTime}
+                </div>
+              </div>
+            </div>
+            {selectedSpecialty && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-lime/20 flex items-center justify-center">
+                  <Dumbbell size={14} className="text-lime" />
+                </div>
+                <div>
+                  <div className="text-xs text-ink-400">课程类型</div>
+                  <div className="font-medium">{SPECIALTY_LABEL[selectedSpecialty]}</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="px-6 py-4 flex gap-3">
+            <button onClick={handleCloseAndReset} className="btn-secondary flex-1">
+              关闭
+            </button>
+            <button
+              onClick={handleCloseAndReset}
+              className="btn-primary flex-1"
+            >
+              继续排课
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -357,7 +473,7 @@ export default function BookingModal({ open, onClose, onSuccess }: BookingModalP
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 bg-ink-800/95 backdrop-blur border-t border-ink-700">
-          <button onClick={onClose} className="btn-secondary">
+          <button onClick={handleCloseAndReset} className="btn-secondary">
             取消
           </button>
           <button

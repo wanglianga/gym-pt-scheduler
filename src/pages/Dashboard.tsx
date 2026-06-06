@@ -32,6 +32,9 @@ export default function Dashboard() {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [initialBookingDate, setInitialBookingDate] = useState('');
+  const [initialBookingTime, setInitialBookingTime] = useState('');
+  const [initialBookingCoachId, setInitialBookingCoachId] = useState('');
 
   const { loadBookings, getTodayBookings, bookings } = useBookingStore();
   const { loadPackages, getExpiringPackages, getLowBalancePackages, getActivePackagesByMember } = usePackageStore();
@@ -78,13 +81,26 @@ export default function Dashboard() {
     return getActivePackagesByMember(selectedMember.id);
   }, [selectedMember, getActivePackagesByMember]);
 
+  const handleEmptyClick = (date: string, time: string, coachId: string | null) => {
+    setInitialBookingDate(date);
+    setInitialBookingTime(time);
+    setInitialBookingCoachId(coachId || '');
+    setSelectedMember(null);
+    setBookingModalOpen(true);
+  };
+
   const handleBookMember = (member: Member) => {
     setSelectedMember(member);
+    setInitialBookingDate('');
+    setInitialBookingTime('');
+    setInitialBookingCoachId('');
     setBookingModalOpen(true);
   };
 
   const handleBookingSuccess = () => {
-    setBookingModalOpen(false);
+    setInitialBookingDate('');
+    setInitialBookingTime('');
+    setInitialBookingCoachId('');
     setRescheduleModalOpen(false);
     setLeaveModalOpen(false);
     setActiveBookingId(null);
@@ -180,7 +196,7 @@ export default function Dashboard() {
               )}
               style={{ transitionDelay: `${animationDelays[4]}ms` }}
             >
-              <WeekCalendar />
+              <WeekCalendar onEmptyClick={handleEmptyClick} />
             </div>
           </div>
 
@@ -230,6 +246,10 @@ export default function Dashboard() {
         open={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
         onSuccess={handleBookingSuccess}
+        initialMemberId={selectedMember?.id}
+        initialCoachId={initialBookingCoachId}
+        initialDate={initialBookingDate}
+        initialStartTime={initialBookingTime}
       />
       <RescheduleModal
         open={rescheduleModalOpen}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   User,
@@ -18,6 +18,7 @@ import {
   PackageCard,
   TrainingGoal,
 } from '@/components/member';
+import BookingModal from '@/components/booking/BookingModal';
 import { useMemberStore } from '@/store/useMemberStore';
 import { useBookingStore } from '@/store/useBookingStore';
 import { usePackageStore } from '@/store/usePackageStore';
@@ -46,6 +47,7 @@ const bookingStatusBadgeClass: Record<BookingStatus, string> = {
 export default function MemberDetail() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   const loadMembers = useMemberStore((s) => s.loadMembers);
   const getMemberById = useMemberStore((s) => s.getMemberById);
@@ -212,7 +214,10 @@ export default function MemberDetail() {
             </div>
 
             <div className="flex gap-3 lg:flex-shrink-0">
-              <button className="btn-primary gap-2">
+              <button
+                className="btn-primary gap-2"
+                onClick={() => setBookingModalOpen(true)}
+              >
                 <CalendarPlus className="w-4 h-4" />
                 立即预约
               </button>
@@ -300,6 +305,12 @@ export default function MemberDetail() {
           </div>
         </div>
       </div>
+
+      <BookingModal
+        open={bookingModalOpen}
+        onClose={() => setBookingModalOpen(false)}
+        initialMemberId={memberId}
+      />
     </AppLayout>
   );
 }
