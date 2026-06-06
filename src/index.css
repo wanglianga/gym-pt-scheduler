@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Oswald:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-900 text-ink-100 min-h-screen;
+    background-image: linear-gradient(180deg, #1A1A1A 0%, #0F0F0F 100%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Oswald', Impact, sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0F0F0F;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 4px;
+    border: 2px solid #0F0F0F;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #FF6B35;
+  }
+
+  ::selection {
+    background: rgba(255, 107, 53, 0.3);
+    color: #ffffff;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #333333 #0F0F0F;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-ink-900 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-orange text-white hover:bg-orange-600 focus:ring-orange-500 shadow-glow-orange;
+  }
+
+  .btn-secondary {
+    @apply btn bg-ink-700 text-ink-100 hover:bg-ink-600 focus:ring-ink-500;
+  }
+
+  .btn-success {
+    @apply btn bg-lime text-ink-900 hover:bg-lime-500 focus:ring-lime shadow-glow-lime;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger text-white hover:bg-danger-600 focus:ring-danger-500;
+  }
+
+  .card {
+    @apply bg-ink-800 border border-ink-700 rounded-xl shadow-industrial;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:border-orange hover:shadow-glow-orange;
+  }
+
+  .input {
+    @apply w-full bg-ink-700 border border-ink-600 rounded-lg px-4 py-2.5 text-ink-100 placeholder-ink-400 focus:outline-none focus:border-orange focus:ring-1 focus:ring-orange transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-orange {
+    @apply badge bg-orange/20 text-orange border border-orange/40;
+  }
+
+  .badge-lime {
+    @apply badge bg-lime/20 text-lime border border-lime/40;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger/20 text-danger border border-danger/40;
+  }
+
+  .badge-info {
+    @apply badge bg-info/20 text-info border border-info/40;
+  }
+}
+
+@layer utilities {
+  .text-gradient-orange {
+    background: linear-gradient(135deg, #FF6B35 0%, #CC4A1A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-grid-pattern {
+    background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .shimmer-effect {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.0) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+}
